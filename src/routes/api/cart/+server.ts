@@ -1,7 +1,7 @@
 import { db } from '$lib/server/db';
 import { cart, products } from '$lib/server/db/schema';
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 // Add to Cart
 export const POST: RequestHandler = async ({ request }) => {
@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ request }) => {
         const existingCartItem = await db
             .select()
             .from(cart)
-            .where((eq(cart.userId, userId), eq(cart.productId, productId))) // Combine conditions with `and()`
+            .where(and(eq(cart.userId, userId), eq(cart.productId, productId))) // Fixed logical conjunction
             .limit(1)
             .execute();
 
@@ -38,9 +38,10 @@ export const POST: RequestHandler = async ({ request }) => {
         return json({ error: 'Internal server error' }, { status: 500 });
     }
 };
+
 // Get Cart Items
 export const GET: RequestHandler = async ({ url }) => {
-    const userId = Number(url.searchParams.get('userId'));  // Convert userId to a number
+    const userId = Number(url.searchParams.get('userId'));
 
     if (!userId) {
         return json({ error: 'User ID is required' }, { status: 400 });
@@ -49,7 +50,16 @@ export const GET: RequestHandler = async ({ url }) => {
     try {
         // Fetch the user's cart items with product details
         const cartItems = await db
-            .select({ cartId: cart.id, quantity: cart.quantity, product: products })
+            .select({
+                cartId: cart.id,
+                quantity: cart.quantity,
+                productId: products.id,
+                name: products.name,
+                price: products.price,
+                description: products.description,
+                category: products.category,
+                image: products.image,
+            })
             .from(cart)
             .innerJoin(products, eq(cart.productId, products.id))
             .where(eq(cart.userId, userId))
@@ -58,6 +68,58 @@ export const GET: RequestHandler = async ({ url }) => {
         return json(cartItems);
     } catch (error) {
         console.error('Error fetching cart items:', error);
+        return json({ error: 'Internal server error' }, { status: 500 });
+    }
+};
+
+export const DELETE: RequestHandler = async ({ params, request }) => {
+    const cartId = Number(params.id);
+    const { userId } = await request.json();
+
+    if (!cartId || !userId) {
+        return json({ error: 'Cart ID and User ID are required' }, { status: 400 });
+    }
+
+    try {
+        // Delete the specific cart item for the given user
+        const result = await db
+            .delete(cart)
+            .where(and(
+                eq(cart.id, cartId), 
+                eq(cart.userId, userId)
+            ))
+            .execute();
+
+        return json({ message: 'Item removed from cart successfully' });
+    } catch (error) {
+        console.error('Error removing cart item:', error);
+        return json({ error: 'Internal server error' }, { status: 500 });
+    }
+};
+
+// PATCH route to update quantity
+export const PATCH: RequestHandler = async ({ params, request }) => {
+    const cartId = Number(params.id);
+    const { userId, quantity } = await request.json();
+
+    if (!cartId || !userId || !quantity) {
+        return json({ error: 'Cart ID, User ID, and Quantity are required' }, { status: 400 });
+    }
+
+    try {
+        // Update the quantity for the specific cart item
+        await db
+            .update(cart)
+            .set({ quantity: quantity })
+            .where(and(
+                eq(cart.id, cartId), 
+                eq(cart.userId, userId)
+            ))
+            .execute();
+
+        return json({ message: 'Cart item quantity updated successfully' });
+    } catch (error) {
+        console.error('Error updating cart item quantity:', error);
         return json({ error: 'Internal server error' }, { status: 500 });
     }
 };

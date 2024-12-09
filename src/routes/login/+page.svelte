@@ -12,6 +12,9 @@
     });
 
     if (response.ok) {
+        const data = await response.json();
+        // Store user ID or token in localStorage or cookies
+        localStorage.setItem('userId', data.userId);
         goto('/userhome');
     } else {
         const errorResponse = await response.json();
