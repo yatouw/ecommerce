@@ -4,8 +4,11 @@
     let name = '';
     let price = '';
     let description = '';
-    let category = '';
+    let category = 'Laptop'; // Default category
     let image: File | null = null;
+
+    // Predefined categories
+    const categories = ['Laptop', 'Cellphone', 'Accessory'];
 
     async function handleAddProduct() {
         const formData = new FormData();
@@ -23,6 +26,12 @@
         const result = await response.json();
         if (response.ok) {
             alert('Product added successfully!');
+            // Reset form
+            name = '';
+            price = '';
+            description = '';
+            category = 'Laptop';
+            image = null;
         } else {
             alert(`Failed to add product: ${result.error}`);
         }
@@ -71,14 +80,16 @@
 
         <div>
             <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
-            <input 
+            <select 
                 id="category"
-                type="text" 
-                bind:value={category} 
-                placeholder="Enter category" 
+                bind:value={category}
                 required 
                 class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
+            >
+                {#each categories as categoryOption}
+                    <option value={categoryOption}>{categoryOption}</option>
+                {/each}
+            </select>
         </div>
 
         <div>
